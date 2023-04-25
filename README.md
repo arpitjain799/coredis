@@ -33,15 +33,15 @@ ______________________________________________________________________
 <!-- TOC depthFrom:2 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
 - [Installation](#installation)
+- [Quick start](#quick-start)
+  - [Single Node or Cluster client](#single-node-or-cluster-client)
+  - [Sentinel](#sentinel)
 - [Feature Summary](#feature-summary)
   - [Deployment topologies](#deployment-topologies)
   - [Application patterns](#application-patterns)
   - [Server side scripting](#server-side-scripting)
   - [Redis Modules](#redis-modules)
   - [Miscellaneous](#miscellaneous)
-- [Quick start](#quick-start)
-  - [Single Node or Cluster client](#single-node-or-cluster-client)
-  - [Sentinel](#sentinel)
 - [Compatibility](#compatibility)
   - [Supported python versions](#supported-python-versions)
   - [Redis-like backends](#redis-like-backends)
@@ -56,40 +56,6 @@ To install coredis:
 ```bash
 $ pip install coredis
 ```
-
-## Feature Summary
-
-### Deployment topologies
-
-- [Redis Cluster](https://coredis.readthedocs.org/en/latest/handbook/cluster.html#redis-cluster)
-- [Sentinel](https://coredis.readthedocs.org/en/latest/api.html#sentinel)
-
-### Application patterns
-
-- [Connection Pooling](https://coredis.readthedocs.org/en/latest/handbook/connections.html#connection-pools)
-- [PubSub](https://coredis.readthedocs.org/en/latest/handbook/pubsub.html)
-- [Sharded PubSub](https://coredis.readthedocs.org/en/latest/handbook/pubsub.html#sharded-pub-sub) \[`>= Redis 7.0`\]
-- [Stream Consumers](https://coredis.readthedocs.org/en/latest/handbook/streams.html)
-- [Pipelining](https://coredis.readthedocs.org/en/latest/handbook/pipelines.html)
-- [Client side caching](https://coredis.readthedocs.org/en/latest/handbook/caching.html)
-
-### Server side scripting
-
-- [LUA Scripting](https://coredis.readthedocs.org/en/latest/handbook/scripting.html#lua_scripting)
-- [Redis Libraries and functions](https://coredis.readthedocs.org/en/latest/handbook/scripting.html#library-functions) \[`>= Redis 7.0`\]
-
-### Redis Modules
-
-- [RedisJSON](https://coredis.readthedocs.org/en/latest/handbook/modules.html#redisjson)
-- [RediSearch](https://coredis.readthedocs.org/en/latest/handbook/modules.html#redisearch)
-- [RedisGraph](https://coredis.readthedocs.org/en/latest/handbook/modules.html#redisgraph)
-- [RedisBloom](https://coredis.readthedocs.org/en/latest/handbook/modules.html#redisbloom)
-- [RedisTimeSeries](https://coredis.readthedocs.org/en/latest/handbook/modules.html#redistimeseries)
-
-### Miscellaneous
-
-- Public API annotated with type annotations
-- Optional [Runtime Type Validation](https://coredis.readthedocs.org/en/latest/handbook/typing.html#runtime-type-checking) (via [beartype](https://github.com/beartype/beartype))
 
 ## Quick start
 
@@ -137,12 +103,181 @@ async def example():
 asyncio.run(example())
 ```
 
-To see a full list of supported redis commands refer to the [Command
-compatibility](https://coredis.readthedocs.io/en/latest/compatibility.html)
-documentation
+## Feature Summary
 
-Details about supported Redis modules and their commands can be found
-[here](https://coredis.readthedocs.io/en/latest/handbook/modules.html)
+### Deployment topologies
+
+- [Redis Cluster](https://coredis.readthedocs.org/en/latest/handbook/cluster.html#redis-cluster)
+- [Sentinel](https://coredis.readthedocs.org/en/latest/api.html#sentinel)
+
+### Application patterns
+
+- [Connection Pooling](https://coredis.readthedocs.org/en/latest/handbook/connections.html#connection-pools)
+- [PubSub](https://coredis.readthedocs.org/en/latest/handbook/pubsub.html)
+- [Sharded PubSub](https://coredis.readthedocs.org/en/latest/handbook/pubsub.html#sharded-pub-sub) (`>= Redis 7.0`)
+- [Stream Consumers](https://coredis.readthedocs.org/en/latest/handbook/streams.html)
+- [Pipelining](https://coredis.readthedocs.org/en/latest/handbook/pipelines.html)
+- [Client side caching](https://coredis.readthedocs.org/en/latest/handbook/caching.html)
+
+### Server side scripting
+
+- [LUA Scripting](https://coredis.readthedocs.org/en/latest/handbook/scripting.html#lua_scripting)
+- [Redis Libraries and functions](https://coredis.readthedocs.org/en/latest/handbook/scripting.html#library-functions) (`>= Redis 7.0`)
+
+### Redis Modules
+
+- <details>
+  <summary>RedisJSON</summary>
+
+  ```python
+  client = coredis.Redis(port=9379)
+  await client.json.set(
+      "key1", ".", {"a": 1, "b": [1, 2, 3], "c": "str"}
+  )
+  assert 1 == await client.json.get("key1", ".a")
+  assert [1,2,3] == await client.json.get("key1", ".b")
+  assert "str" == await client.json.get("key1", ".c")
+  ```
+
+  For more examples refer to the [handbook entry on RedisJSON](https://coredis.readthedocs.org/en/latest/handbook/modules.html#redisjson)
+
+  </details>
+
+- <details>
+  <summary>RedisSearch</summary>
+
+  #### Create and populate an index
+
+  ```python
+  client = coredis.Redis(decode_responses=True)
+  await client.search.create("idx", [
+    coredis.modules.search.Field("name", coredis.PureToken.TEXT),
+    coredis.modules.search.Field("summary", coredis.PureToken.TEXT),
+    coredis.modules.search.Field("tags", coredis.PureToken.TAG),
+  ], on=coredis.PureToken.HASH, prefixes=["doc:"])
+  await client.hset(
+    f"doc:1", 
+    {
+        "name": "coredis", 
+        "summary": "async python client for redis", 
+        "tags": "redis,cluster,sentinel,async"
+    }
+  ) 
+  await client.hset(
+    f"doc:2", 
+    {
+        "name": "redispy", 
+        "summary": "official python client for redis", 
+        "tags": "redis,cluster,sentinel,async,official"
+    }
+  ) 
+  ```
+
+  #### Search
+
+  ```python
+
+  results = await client.search.search("idx", "redis")
+  assert results.total == 2
+  assert results.documents[0].properties["title"] == "coredis" 
+  results = await client.search.search("idx", "redis @tags:{official}")
+  assert results.total == 1
+  assert results.documents[0].properties["title"] == "redispy" 
+  ```
+
+  #### Aggregate
+
+  ```python
+
+  aggregations = await client.search.aggregate(
+    "idx",
+    "*",
+    load="*",
+    transforms=[
+        coredis.modules.search.Apply("split(@tags)", "tag"),
+        coredis.modules.search.Group(
+            "@tag", [
+                coredis.modules.search.Reduce("count", [0], "tag_count"),
+             ]
+        ),
+    ],
+    sortby={
+        "@tag_count": coredis.PureToken.DESC,
+        "@tag": coredis.PureToken.DESC
+    }
+  )
+  assert aggregations.results[0]["tag"] == "sentinel" 
+  assert aggregations.results[0]["tag_count"] == "2" 
+  assert aggregations.results[-1]["tag"] == "official" 
+  assert aggregations.results[-1]["tag_count"] == "1" 
+  ```
+
+  For more examples refer to the [handbook entry on RediSearch](https://coredis.readthedocs.org/en/latest/handbook/modules.html#redisearch)
+
+  </details>
+
+- <details>
+  <summary>RedisGraph</summary>
+
+  #### Add nodes to a graph
+
+  ```python
+
+  client = coredis.Redis()
+  await client.graph.query(
+    "social", 
+    """
+    CREATE (alice:person {
+       name: 'Alice', age: 32
+    }),
+    (bob:person {
+       name: 'Bob', age: 33
+    }),
+    (alice)-[:friend]->(bob),
+    (alice)<-[:friend]-(bob),
+    (alice)-[:manager]->(bob)
+    """
+  )
+  ```
+
+  #### Query the graph
+
+  ```python
+
+  result = await client.graph.query("social", "MATCH (a)-[:friend]->(b) RETURN a,b")
+  assert result.result_set[0][0].properties["name"] == "Alice"
+  assert result.result_set[0][1].properties["name"] == "Bob" 
+
+  result = await client.graph.query(
+      "social", 
+      "MATCH (a)-[:friend]->(b)-[:manager]->(a) RETURN a,b"
+  )
+  assert result.result_set[0][0].properties["name"] == "Bob"
+  assert result.result_set[0][1].properties["name"] == "Alice" 
+  ```
+
+  For more examples refer to the [handbook entry on RedisGraph](https://coredis.readthedocs.org/en/latest/handbook/modules.html#redisgraph)
+
+  </details>
+
+- <details>
+  <summary>RedisBloom</summary>
+
+  For more examples refer to the [handbook entry on RedisBloom](https://coredis.readthedocs.org/en/latest/handbook/modules.html#redisbloom)
+
+  </details>
+
+- <details>
+  <summary>RedisTimeSeries</summary>
+
+  For more examples refer to the [handbook entry on RedisTimeSeries](https://coredis.readthedocs.org/en/latest/handbook/modules.html#redistimeseries)
+
+  </details>
+
+### Miscellaneous
+
+- Public API annotated with type annotations
+- Optional [Runtime Type Validation](https://coredis.readthedocs.org/en/latest/handbook/typing.html#runtime-type-checking) (via [beartype](https://github.com/beartype/beartype))
 
 ## Compatibility
 
@@ -153,6 +288,13 @@ The test matrix status can be reviewed
 coredis is additionally tested against:
 
 - ` uvloop >= 0.15.0`
+
+To see a full list of supported redis commands refer to the [Command
+compatibility](https://coredis.readthedocs.io/en/latest/compatibility.html)
+documentation
+
+Details about supported Redis modules and their commands can be found
+[here](https://coredis.readthedocs.io/en/latest/handbook/modules.html)
 
 ### Supported python versions
 
